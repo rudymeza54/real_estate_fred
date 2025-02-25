@@ -5,6 +5,17 @@ import {
   BarChart, Bar, PieChart, Pie, Cell
 } from 'recharts';
 
+// At the top of your Dashboard.tsx file, add this import:
+import { FRED_API_URL, HEALTH_CHECK_URL } from '../config';
+
+
+
+// With this:
+const PROXY_URL = FRED_API_URL;
+
+
+
+
 // Define types for our data structures
 interface Observation {
   date: string;
@@ -87,8 +98,7 @@ export function CardTitle({ children, className = '' }: {
   return <h2 className={`text-lg font-bold text-slate-700 ${className}`}>{children}</h2>;
 }
 
-// FRED API service with proxy
-const PROXY_URL = 'http://localhost:4000/api/fred';
+
 
 const fredService = {
   async getSeries(seriesId: string, params: Record<string, any> = {}) {
@@ -210,7 +220,8 @@ const Dashboard = () => {
       try {
         // Check if proxy server is running
         try {
-          const healthResponse = await fetch('http://localhost:4000/health');
+          // With this:
+          const healthResponse = await fetch(HEALTH_CHECK_URL);
           if (!healthResponse.ok) {
             throw new Error('Health check failed');
           }

@@ -1,8 +1,20 @@
 [build]
+  # Directory to publish (Vite's output directory)
+  publish = "dist"
+  
+  # Default build command
   command = "npm run build"
-  publish = "/build"
-  base = "/"
 
+[functions]
+  # Directory where your Netlify functions are located
+  directory = "netlify/functions"
+
+# Environment variables settings
+[build.environment]
+  # For development, this will be overridden by Netlify's environment variables
+  VITE_API_BASE_URL = "/.netlify/functions"
+
+# Redirects for SPA
 [[redirects]]
   from = "/*"
   to = "/index.html"
