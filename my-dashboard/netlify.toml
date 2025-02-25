@@ -1,9 +1,6 @@
 [build]
-  # Directory to publish (Vite's output directory)
   publish = "dist"
-  
-  # Default build command
-  command = "npm run build"
+  command = "npm ci && npm run build"  
 
 [functions]
   # Directory where your Netlify functions are located
