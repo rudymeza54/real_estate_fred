@@ -1,0 +1,22 @@
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
+// https://vitejs.dev/config/
+export default defineConfig({
+    plugins: [react()],
+    resolve: {
+        alias: {
+            '@': path.resolve(__dirname, './src'),
+        },
+    },
+    server: {
+        proxy: {
+            '/api': {
+                target: 'https://api.stlouisfed.org',
+                changeOrigin: true,
+                rewrite: function (path) { return path.replace(/^\/api/, ''); },
+            },
+        },
+    }
+    // NO TypeScript options here - they belong in tsconfig.json
+});

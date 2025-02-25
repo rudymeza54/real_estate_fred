@@ -1,13 +1,10 @@
 {
   "compilerOptions": {
-    "noImplicitAny": false,
-    "strictNullChecks": false,
-    "strict": false,
-    "allowJs": true
+    "composite": true,
+    "skipLibCheck": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true
   },
-  "files": [],
-  "references": [
-    { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" }
-  ]
+  "include": ["vite.config.ts"]
 }

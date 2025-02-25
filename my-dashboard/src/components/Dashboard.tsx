@@ -5,19 +5,79 @@ import {
   BarChart, Bar, PieChart, Pie, Cell
 } from 'recharts';
 
-// Card Components
+// Define types for our data structures
+interface Observation {
+  date: string;
+  value: string;
+}
+
+interface ApiResponse {
+  observations: Observation[];
+}
+
+interface ProcessedDataPoint {
+  date: string;
+  month: string;
+  value: number;
+}
+
+interface CombinedDataPoint {
+  date: string;
+  month: string;
+  priceIndex: number | null;
+  inventory: number | null;
+  mortgageRate: number | null;
+  constructionSpend: number | null;
+  bankruptcies: number | null;
+}
+
+interface RegionalData {
+  region: string;
+  priceIndex: number;
+  inventoryMonths: number;
+  yearOverYearGrowth: number;
+}
+
+interface MarketTrend {
+  quarter: string;
+  residential: number;
+  commercial: number;
+  industrial: number;
+}
+
+interface MarketSegment {
+  name: string;
+  value: number;
+  color: string;
+}
+
+interface MarketData {
+  trends: MarketTrend[];
+  segments: MarketSegment[];
+}
+
+interface MetricInfo {
+  name: string;
+  color: string;
+  icon: React.ComponentType<any>;
+}
+
+interface MetricsMap {
+  [key: string]: MetricInfo;
+}
+
 // Card Components
 export function Card({ children }: { children: React.ReactNode }) {
-  return <div className="border rounded-lg p-8 shadow">{children}</div>; // Increased padding to p-8
+  return <div className="border rounded-lg p-8 shadow">{children}</div>;
 }
 
 export function CardContent({ children }: { children: React.ReactNode }) {
-  console.log("CardContent rendered"); // Debugging
-  return <div className="p-6">{children}</div>; // Adjusted padding to p-6
+  console.log("CardContent rendered");
+  return <div className="p-6">{children}</div>;
 }
 
 export function CardHeader({ children }: { children: React.ReactNode }) {
-  return <div className="border-b p-6 font-bold">{children}</div>; // Adjusted padding to p-6
+  return <div className="border-b p-6 font-bold">{children}</div>;
 }
 
 export function CardTitle({ children, className = '' }: { 
@@ -28,7 +88,7 @@ export function CardTitle({ children, className = '' }: {
 }
 
 // FRED API service with proxy
-const PROXY_URL = 'http://localhost:4000/api/fred'; // Update this if your proxy runs on a different port
+const PROXY_URL = 'http://localhost:4000/api/fred';
 
 const fredService = {
   async getSeries(seriesId: string, params: Record<string, any> = {}) {
@@ -53,6 +113,39 @@ const fredService = {
   }
 };
 
+// Mock data generator function
+function generateMockData(): CombinedDataPoint[] {
+  const startDate = new Date(new Date().getFullYear() - 5, 0, 1); // 5 years ago
+  const data: CombinedDataPoint[] = [];
+  
+  for (let i = 0; i < 60; i++) { // 60 months = 5 years
+    const currentDate = new Date(startDate);
+    currentDate.setMonth(startDate.getMonth() + i);
+    
+    const dateStr = currentDate.toISOString().split('T')[0];
+    const monthStr = currentDate.toLocaleDateString('en-US', { month: 'short' });
+    
+    // Generate slightly realistic looking data with trends
+    const basePriceIndex = 100 + i * 0.5 + Math.random() * 5;
+    const baseInventory = 4 + Math.sin(i / 10) * 1.5 + Math.random() * 0.5;
+    const baseMortgageRate = 3 + Math.sin(i / 15) * 1 + Math.random() * 0.3;
+    const baseConstruction = 1200 + i * 10 + Math.sin(i / 8) * 100 + Math.random() * 50;
+    const baseBankruptcies = 2000 + Math.sin(i / 12) * 200 + Math.random() * 100;
+    
+    data.push({
+      date: dateStr,
+      month: monthStr,
+      priceIndex: parseFloat(basePriceIndex.toFixed(2)),
+      inventory: parseFloat(baseInventory.toFixed(2)),
+      mortgageRate: parseFloat(baseMortgageRate.toFixed(2)),
+      constructionSpend: parseFloat(baseConstruction.toFixed(2)),
+      bankruptcies: parseFloat(baseBankruptcies.toFixed(2))
+    });
+  }
+  
+  return data;
+}
+
 // Real estate FRED series IDs - Updated with valid series
 const SERIES_IDS = {
   priceIndex: 'CSUSHPINSA',     // Case-Shiller Home Price Index
@@ -64,23 +157,23 @@ const SERIES_IDS = {
 
 const Dashboard = () => {
   // States for each metric
-  const [priceIndexData, setPriceIndexData] = useState([]);
-  const [inventoryData, setInventoryData] = useState([]);
-  const [mortgageRateData, setMortgageRateData] = useState([]);
-  const [constructionData, setConstructionData] = useState([]);
-  const [bankruptcyData, setBankruptcyData] = useState([]);
+  const [_priceIndexData, setPriceIndexData] = useState<ProcessedDataPoint[]>([]);
+  const [_inventoryData, setInventoryData] = useState<ProcessedDataPoint[]>([]);
+  const [_mortgageRateData, setMortgageRateData] = useState<ProcessedDataPoint[]>([]);
+  const [_constructionData, setConstructionData] = useState<ProcessedDataPoint[]>([]);
+  const [_bankruptcyData, setBankruptcyData] = useState<ProcessedDataPoint[]>([]);
   
   // Combined data for charts
-  const [chartData, setChartData] = useState([]);
-  const [regionalData, setRegionalData] = useState([]);
-  const [marketData, setMarketData] = useState(null);
+  const [chartData, setChartData] = useState<CombinedDataPoint[]>([]);
+  const [regionalData, setRegionalData] = useState<RegionalData[]>([]);
+  const [marketData, setMarketData] = useState<MarketData | null>(null);
   
   // UI states
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [activeMetric, setActiveMetric] = useState('priceIndex');
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeMetric, setActiveMetric] = useState<string>('priceIndex');
   
-  const metrics = {
+  const metrics: MetricsMap = {
     priceIndex: { 
       name: 'Price Index', 
       color: '#0f766e',
@@ -135,7 +228,7 @@ const Dashboard = () => {
         fiveYearsAgo.setFullYear(firstDayOfThisMonth.getFullYear() - 5);
         const formattedDate = fiveYearsAgo.toISOString().split('T')[0];
 
-        console.log("Observation start date:", formattedDate); // Debugging
+        console.log("Observation start date:", formattedDate);
 
         // Common params for all requests
         const commonParams = {
@@ -160,17 +253,17 @@ const Dashboard = () => {
         const failedRequests = results.filter(r => r.status === 'rejected');
         if (failedRequests.length > 0) {
           console.warn(`${failedRequests.length} out of ${results.length} requests failed`);
-          failedRequests.forEach(f => console.error('Failed request:', f.reason));
+          failedRequests.forEach(f => console.error('Failed request:', (f as PromiseRejectedResult).reason));
         }
         
         // Process results even if some failed
         const [priceIndex, inventory, mortgageRate, construction, bankruptcy] = results.map(
-          r => r.status === 'fulfilled' ? r.value : { observations: [] }
+          r => r.status === 'fulfilled' ? (r as PromiseFulfilledResult<ApiResponse>).value : { observations: [] }
         );
         
         // Process price index data
         const processedPriceIndex = priceIndex.observations
-          ?priceIndex.observations.map((obs: any) => ({
+          ? priceIndex.observations.map((obs: Observation) => ({
               date: obs.date,
               month: new Date(`${obs.date}T00:00:00Z`).toLocaleDateString('en-US', { 
                 month: 'short', 
@@ -182,7 +275,7 @@ const Dashboard = () => {
         
         // Process inventory data
         const processedInventory = inventory.observations
-          ? inventory.observations.map(obs => ({
+          ? inventory.observations.map((obs: Observation) => ({
               date: obs.date,
               month: new Date(`${obs.date}T00:00:00Z`).toLocaleDateString('en-US', { 
                 month: 'short', 
@@ -194,7 +287,7 @@ const Dashboard = () => {
         
         // Process mortgage rate data
         const processedMortgageRate = mortgageRate.observations
-          ? mortgageRate.observations.map(obs => ({
+          ? mortgageRate.observations.map((obs: Observation) => ({
               date: obs.date,
               month: new Date(`${obs.date}T00:00:00Z`).toLocaleDateString('en-US', { 
                 month: 'short', 
@@ -206,7 +299,7 @@ const Dashboard = () => {
         
         // Process construction spending data
         const processedConstruction = construction.observations
-          ? construction.observations.map(obs => ({
+          ? construction.observations.map((obs: Observation) => ({
               date: obs.date,
               month: new Date(`${obs.date}T00:00:00Z`).toLocaleDateString('en-US', { 
                 month: 'short', 
@@ -218,7 +311,7 @@ const Dashboard = () => {
         
         // Process bankruptcy data
         const processedBankruptcy = bankruptcy.observations
-          ? bankruptcy.observations.map(obs => ({
+          ? bankruptcy.observations.map((obs: Observation) => ({
               date: obs.date,
               month: new Date(`${obs.date}T00:00:00Z`).toLocaleDateString('en-US', { 
                 month: 'short', 
@@ -250,19 +343,19 @@ const Dashboard = () => {
         
         // Combine data for charts (join on date)
         const allDates = [...new Set([
-          ...processedPriceIndex.map(i => i.date),
-          ...processedInventory.map(i => i.date),
-          ...processedMortgageRate.map(i => i.date),
-          ...processedConstruction.map(i => i.date),
-          ...processedBankruptcy.map(i => i.date)
+          ...processedPriceIndex.map((i: ProcessedDataPoint) => i.date),
+          ...processedInventory.map((i: ProcessedDataPoint) => i.date),
+          ...processedMortgageRate.map((i: ProcessedDataPoint) => i.date),
+          ...processedConstruction.map((i: ProcessedDataPoint) => i.date),
+          ...processedBankruptcy.map((i: ProcessedDataPoint) => i.date)
         ])].sort();
         
         const combined = allDates.map(date => {
-          const priceItem = processedPriceIndex.find(i => i.date === date);
-          const inventoryItem = processedInventory.find(i => i.date === date);
-          const mortgageItem = processedMortgageRate.find(i => i.date === date);
-          const constructionItem = processedConstruction.find(i => i.date === date);
-          const bankruptcyItem = processedBankruptcy.find(i => i.date === date);
+          const priceItem = processedPriceIndex.find((i: ProcessedDataPoint) => i.date === date);
+          const inventoryItem = processedInventory.find((i: ProcessedDataPoint) => i.date === date);
+          const mortgageItem = processedMortgageRate.find((i: ProcessedDataPoint) => i.date === date);
+          const constructionItem = processedConstruction.find((i: ProcessedDataPoint) => i.date === date);
+          const bankruptcyItem = processedBankruptcy.find((i: ProcessedDataPoint) => i.date === date);
           
           return {
             date,
@@ -306,7 +399,7 @@ const Dashboard = () => {
             { name: 'Land', value: 10, color: '#9333ea' },
           ]
         });
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Error fetching FRED data:', err);
         
         // Generate mock data as fallback
@@ -340,7 +433,7 @@ const Dashboard = () => {
         ]);
         
         // Show a specific error message
-        if (err.message.includes('Proxy server')) {
+        if (err instanceof Error && err.message.includes('Proxy server')) {
           setError(err.message);
         } else {
           setError('Failed to load economic data. Using mock data instead.');
@@ -354,20 +447,21 @@ const Dashboard = () => {
   }, []);
   
   // Calculate trend percentage for each metric
-  const calculateTrend = (data: any[], key: string) => {
+  const calculateTrend = (data: CombinedDataPoint[], key: keyof CombinedDataPoint) => {
     if (!data || data.length < 2) return '0%';
     
     // Get last two valid values
-    let latestValue = null;
-    let previousValue = null;
+    let latestValue: number | null = null;
+    let previousValue: number | null = null;
     
     for (let i = data.length - 1; i >= 0; i--) {
-      if (data[i][key] !== null && latestValue === null) {
-        latestValue = data[i][key];
+      const currentValue = data[i][key];
+      if (currentValue !== null && latestValue === null) {
+        latestValue = currentValue as number;
         continue;
       }
-      if (data[i][key] !== null && latestValue !== null && previousValue === null) {
-        previousValue = data[i][key];
+      if (currentValue !== null && latestValue !== null && previousValue === null) {
+        previousValue = currentValue as number;
         break;
       }
     }
@@ -379,13 +473,14 @@ const Dashboard = () => {
   };
   
   // Get latest value for a metric
-  const getLatestValue = (data, key) => {
+  const getLatestValue = (data: CombinedDataPoint[], key: keyof CombinedDataPoint): number | string => {
     if (!data || !data.length) return 'N/A';
     
     // Find the most recent data point that has this value
     for (let i = data.length - 1; i >= 0; i--) {
-      if (data[i][key] !== null) {
-        return data[i][key];
+      const value = data[i][key];
+      if (value !== null) {
+        return value as number;
       }
     }
     
@@ -423,8 +518,8 @@ const Dashboard = () => {
           <div className="grid grid-cols-5 gap-4">
             {Object.entries(metrics).map(([key, metric]) => {
               const Icon = metric.icon;
-              const latestValue = getLatestValue(chartData, key);
-              const trendValue = calculateTrend(chartData, key);
+              const latestValue = getLatestValue(chartData, key as keyof CombinedDataPoint);
+              const trendValue = calculateTrend(chartData, key as keyof CombinedDataPoint);
               
               return (
                 <div key={key} className="border border-slate-200 rounded-lg shadow-sm bg-white overflow-hidden">
@@ -434,7 +529,7 @@ const Dashboard = () => {
                       <h2 className="text-lg font-semibold text-slate-700">{metric.name}</h2>
                     </div>
                   </div>
-                  <div className="p-4 pl-8"> {/* Added pl-8 for left padding */}
+                  <div className="p-4 pl-8">
                     <div className="flex justify-between items-center">
                       <div>
                         <div className="text-3xl font-bold text-slate-800 pr-8">
@@ -471,7 +566,7 @@ const Dashboard = () => {
         <div className="p-4 border-b border-slate-100">
             <h2 className="text-xl font-bold text-slate-800">Trends Over Time</h2>
         </div>
-        <div className="p-6 pl-8"> {/* Added pl-8 for left padding */}
+        <div className="p-6 pl-8">
         <div className="flex flex-wrap gap-2 mb-6" style={{ paddingBottom: "50px" }}>
 
             {Object.entries(metrics).map(([key, metric]) => (
@@ -494,7 +589,7 @@ const Dashboard = () => {
                     <XAxis 
                     dataKey="date" 
                     stroke="#64748b"
-                    tickFormatter={(dateStr) => {
+                    tickFormatter={(dateStr: string) => {
                         const d = new Date(`${dateStr}T00:00:00Z`); // Parse in UTC
                         const month = d.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' });
                         const year = d.getFullYear();
@@ -512,7 +607,7 @@ const Dashboard = () => {
                     />
                     <YAxis 
                     stroke="#64748b"
-                    tickFormatter={(value) => {
+                    tickFormatter={(value: any) => {
                         // Format the Y-axis values based on the active metric
                         if (activeMetric === 'mortgageRate') {
                         return `${value}%`;
@@ -529,19 +624,19 @@ const Dashboard = () => {
                         backgroundColor: 'white',
                         border: '1px solid #e5e7eb' 
                     }}
-                    formatter={(value) => {
-                        if (value === null || value === undefined) return ['N/A', metrics[activeMetric].name];
+                    formatter={(value: any) => {
+                        if (value === null || value === undefined) return ['N/A', metrics[activeMetric as keyof typeof metrics].name];
                         
                         // Format the value based on the active metric
                         if (activeMetric === 'mortgageRate') {
-                        return [`${value.toFixed(2)}%`, metrics[activeMetric].name];
+                        return [`${Number(value).toFixed(2)}%`, metrics[activeMetric as keyof typeof metrics].name];
                         } else if (activeMetric === 'constructionSpend' || activeMetric === 'bankruptcies') {
-                        return [`${value.toLocaleString()}`, metrics[activeMetric].name];
+                        return [`${Number(value).toLocaleString()}`, metrics[activeMetric as keyof typeof metrics].name];
                         } else {
-                        return [value.toFixed(2), metrics[activeMetric].name];
+                        return [value.toFixed(2), metrics[activeMetric as keyof typeof metrics].name];
                         }
                     }}
-                    labelFormatter={(dateStr) => {
+                    labelFormatter={(dateStr: string) => {
                         const d = new Date(`${dateStr}T00:00:00Z`); // Parse in UTC
                         return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
                     }}
@@ -549,7 +644,7 @@ const Dashboard = () => {
                     <Line
                     type="monotone"
                     dataKey={activeMetric}
-                    stroke={metrics[activeMetric].color}
+                    stroke={metrics[activeMetric as keyof typeof metrics].color}
                     strokeWidth={2}
                     dot={{r: 2}}
                     activeDot={{r: 4}}
@@ -565,7 +660,7 @@ const Dashboard = () => {
               <div className="p-4 border-b border-slate-100">
                 <h2 className="text-xl font-bold text-slate-800">Regional Comparison</h2>
               </div>
-              <div className="p-6 pl-8"> {/* Added pl-8 for left padding */}
+              <div className="p-6 pl-8">
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={regionalData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -591,7 +686,7 @@ const Dashboard = () => {
                 <div className="p-4 border-b border-slate-100">
                   <h2 className="text-xl font-bold text-slate-800">Market Analysis</h2>
                 </div>
-                <div className="p-6 pl-8"> {/* Added pl-8 for left padding */}
+                <div className="p-6 pl-8">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <ResponsiveContainer width="100%" height={250}>
@@ -614,9 +709,9 @@ const Dashboard = () => {
                     </div>
 
                     <div className="flex items-center justify-center">
-                    <ResponsiveContainer width="100%" height={300}>
+                      <ResponsiveContainer width="100%" height={300}>
                         <PieChart>
-                        <Pie
+                          <Pie
                             data={marketData.segments}
                             cx="50%"
                             cy="50%"
@@ -624,36 +719,35 @@ const Dashboard = () => {
                             outerRadius="70%"
                             paddingAngle={2}
                             dataKey="value"
-                            label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`}
-                            labelStyle={{ fontSize: '0.75rem', fill: '#1e293b' }}
-                        >
-                            {marketData.segments.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
+                            label={({name, percent}: {name: string, percent: number}) => `${name} ${(percent * 100).toFixed(0)}%`}
+                          >
+                            {marketData.segments.map((entry: MarketSegment, index: number) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
                             ))}
-                        </Pie>
-                        <Tooltip
+                          </Pie>
+                          <Tooltip
                             contentStyle={{
-                            backgroundColor: 'white',
-                            border: '1px solid #e5e7eb',
-                            borderRadius: '0.375rem',
-                            fontSize: '0.75rem'
+                              backgroundColor: 'white',
+                              border: '1px solid #e5e7eb',
+                              borderRadius: '0.375rem',
+                              fontSize: '0.75rem'
                             }}
-                            formatter={(value, name) => [
-                            `${value}%`, 
-                            name
+                            formatter={(value: number, name: string) => [
+                              `${value}%`, 
+                              name
                             ]}
-                        />
-                        <Legend 
+                          />
+ <Legend 
                             layout="horizontal" 
                             verticalAlign="bottom" 
                             align="center"
                             wrapperStyle={{ 
-                            fontSize: '0.75rem',
-                            paddingTop: '10px'
+                              fontSize: '0.75rem',
+                              paddingTop: '10px'
                             }}
-                        />
+                          />
                         </PieChart>
-                    </ResponsiveContainer>
+                      </ResponsiveContainer>
                     </div>
                   </div>
                 </div>
