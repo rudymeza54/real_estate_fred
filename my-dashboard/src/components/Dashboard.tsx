@@ -31,7 +31,7 @@ export function CardTitle({ children, className = '' }: {
 const PROXY_URL = 'http://localhost:4000/api/fred'; // Update this if your proxy runs on a different port
 
 const fredService = {
-  async getSeries(seriesId, params = {}) {
+  async getSeries(seriesId: string, params: Record<string, any> = {}) {
     try {
       const queryParams = new URLSearchParams(params);
       console.log(`Fetching data for ${seriesId}...`);
@@ -170,7 +170,7 @@ const Dashboard = () => {
         
         // Process price index data
         const processedPriceIndex = priceIndex.observations
-          ? priceIndex.observations.map(obs => ({
+          ?priceIndex.observations.map((obs: any) => ({
               date: obs.date,
               month: new Date(`${obs.date}T00:00:00Z`).toLocaleDateString('en-US', { 
                 month: 'short', 
@@ -354,7 +354,7 @@ const Dashboard = () => {
   }, []);
   
   // Calculate trend percentage for each metric
-  const calculateTrend = (data, key) => {
+  const calculateTrend = (data: any[], key: string) => {
     if (!data || data.length < 2) return '0%';
     
     // Get last two valid values
